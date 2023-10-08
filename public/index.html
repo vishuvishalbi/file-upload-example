@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>File Upload and Management</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <style>
+        .list-group-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .file-icon {
+            font-size: 24px;
+            margin-right: 10px;
+        }
+
+        .folder-icon {
+            font-size: 24px;
+            margin-right: 10px;
+            color: #007bff;
+        }
+
+        .delete-button {
+            background-color: #dc3545;
+            border: none;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .upload-section {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .upload-button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 20px;
+            cursor: pointer;
+        }
+
+        .upload-input {
+            display: none;
+        }
+
+        .upload-label {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 20px;
+            cursor: pointer;
+        }
+
+        .upload-label:hover {
+            background-color: #0056b3;
+        }
+
+        .upload-filename {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container mt-5">
+        <div class="row">
+            <div class="col-md-6">
+                <h1>Upload File</h1>
+                <div class="upload-section">
+                    <form>
+                        <label for="file-input" class="upload-label">Choose File</label>
+                        <input type="file" name="file-input" id="file-input" class="upload-input">
+                        <div class="upload-filename" id="upload-filename"></div>
+                        <button type="submit" id="upload-button" class="upload-button">Upload</button>
+                    </form>
+                    <progress id="progress-bar"  max="100"></progress>
+                </div>
+                
+            </div>
+            <div class="col-md-6">
+                <h1>List of Files and Folders</h1>
+                <button id="refresh-button" class="btn btn-primary mb-3">Refresh List</button>
+                <ul class="list-group" id="file-list">
+                </ul>
+            </div>
+            <div class="toast" id="upload-toast" data-bs-delay="10000" style="position: absolute; top: 10px; right: 10px; z-index: 1;">
+                <div class="toast-header">
+                    <strong class="mr-auto">Upload Status</strong>
+                    <button type="button" class="ml-2 mb-1 close" data-dismiss="toast">&times;</button>
+                </div>
+                <div class="toast-body">
+                    File uploaded successfully!
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        async function fetchFileList() {
+            try {
+                const response = await fetch('/file-and-folder-list');
+                const data = await response.json();
+
+                const fileList = data.fileList;
+
+                const fileListElement = document.getElementById('file-list');
+                fileListElement.innerHTML = '';
+
+                fileList.forEach((item) => {
+                    const listItem = document.createElement('li');
+                    listItem.className = 'list-group-item';
+
+                    if (item.isDirectory) {
+                        listItem.innerHTML = `<span class="folder-icon">&#128193;</span>${item.name}`;
+                    } else {
+                        listItem.innerHTML = `<span class="file-icon">&#128462;</span>${item.name}
+                        <span class="delete-button" onclick="deleteFile('${item.name}')">Delete</span>`;
+                    }
+
+                    fileListElement.appendChild(listItem);
+                });
+            } catch (error) {
+                console.error('Error fetching file list:', error);
+            }
+        }
+        window.onload = fetchFileList;
+
+        const form = document.querySelector('form');
+        const fileInput = document.getElementById('file-input');
+        const progressBar = document.getElementById('progress-bar');
+        const refreshButton = document.getElementById('refresh-button');
+        const uploadFilename = document.getElementById('upload-filename');
+        const uploadToast = document.getElementById('upload-toast');
+
+        fileInput.addEventListener('change', () => {
+            uploadFilename.textContent = fileInput.files[0] ? fileInput.files[0].name : '';
+        });
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const file = fileInput.files[0];
+            if (!file) {
+                alert('Please select a file.');
+                return;
+            }
+
+            const chunkSize = 1024 * 1024 * 2; // 2MB chunks
+            const totalChunks = Math.ceil(file.size / chunkSize);
+            let currentChunk = 0;
+
+            while (currentChunk < totalChunks) {
+                const start = currentChunk * chunkSize;
+                const end = Math.min(start + chunkSize, file.size);
+                const chunk = file.slice(start, end);
+
+                const formData = new FormData();
+                formData.append('file', chunk);
+                formData.append('filename', file.name)
+                await fetch('/upload', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                currentChunk++;
+                progressBar.value = (currentChunk / totalChunks) * 100;
+            }
+
+            fetchFileList();
+            const toast = new bootstrap.Toast(uploadToast);
+            toast.show();
+        });
+
+        refreshButton.addEventListener('click', () => {
+            fetchFileList();
+        });
+
+        async function deleteFile(filename) {
+            try {
+                const response = await fetch(`/delete-file?filename=${encodeURIComponent(filename)}`, {
+                    method: 'DELETE',
+                });
+                const data = await response.json();
+
+                if (response.status === 200) {
+                    alert(data.message);
+                    fetchFileList();
+                } else {
+                    alert(data.error);
+                }
+            } catch (error) {
+                console.error('Error deleting file:', error);
+            }
+        }
+    </script>
+</body>
+
+</html>

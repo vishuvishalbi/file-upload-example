@@ -11,7 +11,7 @@ The File Upload Project is a web application that allows users to upload and man
 - User-friendly file upload interface.
 - Support for uploading various file types.
 - Chunked file uploading for large files.
-- File management and download options.
+- File management options.
 - Basic file storage and retrieval functionality.
 
 ## Table of Contents

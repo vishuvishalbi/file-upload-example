@@ -46,7 +46,6 @@ Follow these steps to set up and run the File Upload Project:
 4. Start the server:
 
   ```bash
-  cd file-upload-example
   npm start
   ```
 

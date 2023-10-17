@@ -46,10 +46,17 @@ Follow these steps to set up and run the File Upload Project:
 4. Start the server:
 
   ```bash
+  cd file-upload-example
   npm start
   ```
 
-5. Open your web browser and access the application at http://localhost:3000
+5. Create a uploads folder inside file-upload-example
+
+  ```bash
+    mkdir uploads
+  ```
+
+6. Open your web browser and access the application at http://localhost:3000
 
 ## Usage
 Open the web application in your browser.
